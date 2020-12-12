@@ -1,56 +1,47 @@
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-
-from sklearn.svm import SVC
+import pandas as pd 
+import numpy as np 
+# Import and suppress warnings
+import warnings
+warnings.filterwarnings('ignore')
 from sklearn.model_selection import train_test_split
 
-df=pd.read_csv("E:\\Data Science\\Assignments\\Python code\\SVM\\forestfires.csv")
+dataframe=pd.read_csv("forestfires.csv")
 
-df=df.iloc[:,[30,6,7,8,9]]
+dataframe =dataframe.drop(['month','day'], axis=1)
 
-df['size_category'].value_counts()
+dataframe["size_category"].replace({"small":0,"large":1} ,inplace=True)
 
-X=df.iloc[:,1:5]
-y=df.iloc[:,0]
+dataframe["size_category"].value_counts()
 
-X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.3)
+dataframe.info()
+dataframe=dataframe.apply(lambda col:pd.to_numeric(col,errors='coerce'))
 
-from sklearn.preprocessing import scale
+X_train, X_test, y_train, y_test = train_test_split(
+    dataframe.drop(labels='size_category', axis=1),  # predictors
+    dataframe['size_category'],  # target
+    test_size=0.2,
+    random_state=0)
 
-X_train=scale(X_train)
-X_test=scale(X_test)
+X_train.shape, X_test.shape
 
+from imblearn.over_sampling import SMOTE
+sm = SMOTE(random_state = 2) 
+X_train_res, y_train_res = sm.fit_sample(X_train,np.array( y_train).ravel())
 
-#Model building step:
+X_train_res.shape,y_train_res.shape
 
-model=SVC(kernel='linear')
-model.fit(X_train,y_train)
-y_pred=model.predict(X_test)
+from sklearn.svm import SVC
+from sklearn.metrics import confusion_matrix, accuracy_score
 
-from sklearn.metrics import accuracy_score,confusion_matrix,classification_report
-accuracy_score(y_test,y_pred)
-confusion_matrix(y_test,y_pred)
-classification_report(y_test,y_pred)
-
-#######################################################################################################
-
-model2=SVC(kernel='rbf')
-model2.fit(X_train,y_train)
-y_pred2=model2.predict(X_test)
-
-from sklearn.metrics import accuracy_score,confusion_matrix,classification_report
-accuracy_score(y_test,y_pred2)
-confusion_matrix(y_test,y_pred2)
-classification_report(y_test,y_pred2)
-
-#########################################################################################################
-
-model2=SVC(kernel='poly')
-model2.fit(X_train,y_train)
-y_pred2=model2.predict(X_test)
-
-from sklearn.metrics import accuracy_score,confusion_matrix,classification_report
-accuracy_score(y_test,y_pred2)
-confusion_matrix(y_test,y_pred2)
-classification_report(y_test,y_pred2)
+for i in ['linear','rbf']:
+    for j in ['scale','auto']:
+        for k in [1,10,50,100]:
+            classifier = SVC(kernel = i,gamma= j,C=k, random_state = 0)
+            classifier.fit(X_train_res, y_train_res)
+            y_pred = classifier.predict(X_test)
+            accu = accuracy_score(y_test, y_pred)
+            cm = confusion_matrix(y_test, y_pred)
+            print(cm)
+            print("accuracy for {} with gamma as {} for c= {} is {}".format(i,j,k,accu))
+            print("---"*20)
+            print("\n\n")
